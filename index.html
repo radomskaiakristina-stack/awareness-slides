@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Awareness — управление изменениями</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #ece5d8; overflow: hidden; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .scale-layer {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .canvas {
+    width: 1280px;
+    height: 720px;
+    transform-origin: center center;
+    background: #f5f0e8;
+    font-family: 'Lora', serif;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 10px 40px rgba(60,80,50,0.12);
+  }
+
+  .slide {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    padding: 64px 80px 96px;
+  }
+  .slide.active { display: flex; flex-direction: column; animation: fadeIn 0.4s ease; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .slide-content {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 760px;
+  }
+  .slide-content.full-w { max-width: 100%; }
+
+  .slide-label {
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #7a8c6e;
+    margin-bottom: 18px;
+  }
+
+  .slide-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 52px;
+    font-weight: 600;
+    color: #2d3a28;
+    line-height: 1.15;
+    margin-bottom: 24px;
+  }
+  .slide-title.sm { font-size: 40px; margin-bottom: 22px; }
+
+  .slide-subtitle {
+    font-size: 19px;
+    color: #5a6b4e;
+    line-height: 1.7;
+    max-width: 620px;
+    margin-bottom: 32px;
+  }
+
+  .adkar-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 32px; }
+  .adkar-pill {
+    background: #e8e2d4;
+    border-radius: 40px;
+    padding: 8px 20px;
+    font-size: 15px;
+    color: #4a5e3a;
+    font-weight: 500;
+    border: 1px solid #c8bfa8;
+  }
+  .adkar-pill.highlight { background: #3d5a30; color: #e8f0e2; border-color: #3d5a30; }
+
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 10px; }
+
+  .info-card {
+    background: rgba(255,255,255,0.65);
+    border: 1px solid rgba(180,165,140,0.4);
+    border-radius: 16px;
+    padding: 24px 26px;
+  }
+  .info-card-icon { width: 28px; height: 28px; margin-bottom: 12px; color: #5a7a44; display: block; stroke: currentColor; fill: none; }
+  .info-card-title { font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 600; color: #2d3a28; margin-bottom: 10px; }
+  .info-card-text { font-size: 16px; color: #5a6b4e; line-height: 1.6; }
+
+  .signal-list { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+  .signal-item {
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(180,165,140,0.35);
+    border-radius: 12px;
+    padding: 15px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .signal-dot { width: 9px; height: 9px; border-radius: 50%; background: #8aaa6a; flex-shrink: 0; margin-top: 7px; }
+  .signal-dot.red { background: #c8664a; }
+  .signal-text { font-size: 17px; color: #3a4a30; line-height: 1.5; font-style: italic; }
+
+  .step-flow { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+  .step-item {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(180,165,140,0.35);
+    border-radius: 14px;
+    padding: 18px 22px;
+  }
+  .step-num {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: #3d5a30;
+    color: #e8f0e2;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-family: 'Playfair Display', serif;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 18px; font-weight: 500; color: #2d3a28; margin-bottom: 5px; }
+  .step-desc { font-size: 15.5px; color: #5a6b4e; line-height: 1.55; }
+
+  .example-block {
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(140,180,120,0.4);
+    border-left: 5px solid #5a8a3a;
+    border-radius: 0 14px 14px 0;
+    padding: 22px 26px;
+    margin-top: 10px;
+  }
+  .example-label { font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #5a8a3a; margin-bottom: 12px; }
+  .example-text { font-size: 16px; color: #3a4a30; line-height: 1.65; font-style: italic; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+
+  .col-block {
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(180,165,140,0.35);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .col-block-title { font-size: 14px; letter-spacing: 1.5px; text-transform: uppercase; color: #7a8c6e; margin-bottom: 14px; }
+
+  .highlight-box {
+    background: #3d5a30;
+    border-radius: 16px;
+    padding: 26px 30px;
+    margin-top: 24px;
+    color: #e8f0e2;
+  }
+  .highlight-box-title { font-family: 'Playfair Display', serif; font-size: 21px; font-weight: 600; margin-bottom: 10px; color: #d4e8c4; }
+  .highlight-box-text { font-size: 16px; line-height: 1.6; color: #b8d4a4; }
+
+  .big-quote {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+    font-style: italic;
+    color: #2d3a28;
+    line-height: 1.4;
+    border-left: 4px solid #8aaa6a;
+    padding-left: 28px;
+    margin: 18px 0;
+  }
+
+  .tag-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .tag {
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(140,180,120,0.4);
+    border-radius: 7px;
+    padding: 6px 14px;
+    font-size: 15px;
+    color: #4a6a34;
+  }
+
+  .note-box {
+    background: rgba(255,255,255,0.5);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 18px;
+    font-size: 16px;
+    color: #5a6b4e;
+    border: 1px solid rgba(180,165,140,0.3);
+    line-height: 1.55;
+  }
+
+  .wave-deco { position: absolute; bottom: 96px; right: 0; width: 380px; height: 270px; opacity: 0.06; z-index: 1; }
+
+  .nav-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 72px;
+    background: rgba(245,240,232,0.92);
+    border-top: 1px solid rgba(180,165,140,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 80px;
+    z-index: 10;
+  }
+  .nav-btn {
+    background: none;
+    border: 1px solid rgba(100,130,80,0.4);
+    border-radius: 30px;
+    padding: 10px 26px;
+    font-size: 16px;
+    color: #3d5a30;
+    cursor: pointer;
+    font-family: 'Lora', serif;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .nav-btn:hover { background: rgba(80,120,60,0.12); border-color: #5a8a3a; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-btn:disabled:hover { background: none; border-color: rgba(100,130,80,0.4); }
+
+  .nav-dots { display: flex; gap: 9px; align-items: center; }
+  .nav-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(100,130,80,0.25); cursor: pointer; transition: all 0.2s; }
+  .nav-dot.active { background: #3d5a30; width: 26px; border-radius: 5px; }
+
+  .slide-counter { font-size: 15px; color: #8a9c7a; }
+</style>
+</head>
+<body>
+
+<div class="scale-layer">
+<div class="canvas" id="canvas">
+
+  <div class="slide active" id="slide-1">
+    <svg class="wave-deco" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="200" cy="150" rx="160" ry="120" fill="#3d5a30"/>
+      <ellipse cx="260" cy="80" rx="100" ry="80" fill="#3d5a30"/>
+    </svg>
+    <div class="slide-content" style="justify-content: center;">
+      <div class="slide-label">ADKAR &middot; Блок 1</div>
+      <div class="slide-title">Awareness<br>— осознание</div>
+      <div class="slide-subtitle">Первое, что нужно сформировать у человека в процессе изменений — понимание того, зачем это вообще происходит.</div>
+      <div class="adkar-row">
+        <div class="adkar-pill highlight">A — Awareness</div>
+        <div class="adkar-pill">D — Desire</div>
+        <div class="adkar-pill">K — Knowledge</div>
+        <div class="adkar-pill">A — Ability</div>
+        <div class="adkar-pill">R — Reinforcement</div>
+      </div>
+      <div class="tag-row">
+        <div class="tag">Этап 1 из 5</div>
+        <div class="tag">Управление изменениями</div>
+        <div class="tag">ADKAR</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" id="slide-2">
+    <div class="slide-content full-w">
+      <div class="slide-label">Что такое Awareness</div>
+      <div class="slide-title sm">Понять зачем — это первый шаг</div>
+      <div class="card-grid">
+        <div class="info-card">
+          <svg class="info-card-icon" viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div class="info-card-title">Какую проблему мы решаем?</div>
+          <div class="info-card-text">Человек должен видеть конкретную проблему, а не абстрактный призыв к переменам.</div>
+        </div>
+        <div class="info-card">
+          <svg class="info-card-icon" viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+          <div class="info-card-title">Почему старый способ не подходит?</div>
+          <div class="info-card-text">Старое работало — но что изменилось? Без этого аргумента перемена кажется лишней.</div>
+        </div>
+        <div class="info-card">
+          <svg class="info-card-icon" viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 7 9 13 13 9 21 17"/><polyline points="21 11 21 17 15 17"/></svg>
+          <div class="info-card-title">Что будет, если ничего не менять?</div>
+          <div class="info-card-text">Последствия бездействия часто убеждают лучше, чем перспективы изменений.</div>
+        </div>
+        <div class="info-card">
+          <svg class="info-card-icon" viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><line x1="12" y1="15" x2="12.01" y2="15"/></svg>
+          <div class="info-card-title">Почему важно именно сейчас?</div>
+          <div class="info-card-text">Актуальность и срочность — без них изменение откладывается на потом.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" id="slide-3">
+    <div class="slide-content full-w">
+      <div class="slide-label">Как распознать</div>
+      <div class="slide-title sm">Когда Awareness не сформирована</div>
+      <div class="two-col">
+        <div class="col-block">
+          <div class="col-block-title">Что говорит сотрудник</div>
+          <div class="signal-list">
+            <div class="signal-item"><div class="signal-dot red"></div><div class="signal-text">«Не понимаю, зачем это нужно»</div></div>
+            <div class="signal-item"><div class="signal-dot red"></div><div class="signal-text">«Старый способ работал нормально»</div></div>
+            <div class="signal-item"><div class="signal-dot red"></div><div class="signal-text">«Это очередная прихоть руководства»</div></div>
+          </div>
+        </div>
+        <div class="col-block">
+          <div class="col-block-title">Что делает</div>
+          <div class="signal-list">
+            <div class="signal-item"><div class="signal-dot red"></div><div class="signal-text">Продолжает работать по-старому</div></div>
+            <div class="signal-item"><div class="signal-dot red"></div><div class="signal-text">Игнорирует объявления об изменении</div></div>
+            <div class="signal-item"><div class="signal-dot red"></div><div class="signal-text">Пассивен на встречах, не задаёт вопросов</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="highlight-box" style="padding: 18px 24px;">
+        <div class="highlight-box-title" style="font-size: 18px;">Главный признак</div>
+        <div class="highlight-box-text">Если на вопрос «зачем мы это делаем?» сотрудник отвечает «руководство так решило» — барьер именно в Awareness.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" id="slide-4">
+    <div class="slide-content full-w">
+      <div class="slide-label">Диагностика</div>
+      <div class="slide-title sm">Как проверить, есть ли Awareness</div>
+      <div class="big-quote">«Зачем, по-твоему, мы это делаем? Какую проблему решаем?»</div>
+      <div class="two-col">
+        <div class="col-block" style="border-left: 4px solid #c8664a; border-radius: 0 14px 14px 0;">
+          <div class="col-block-title" style="color: #c8664a;">Awareness не сформирована</div>
+          <div class="signal-list">
+            <div class="signal-item" style="background: rgba(200,100,74,0.06); border-color: rgba(200,100,74,0.2);"><div class="signal-dot red"></div><div class="signal-text" style="font-style: normal;">Не может ответить или отвечает формально</div></div>
+            <div class="signal-item" style="background: rgba(200,100,74,0.06); border-color: rgba(200,100,74,0.2);"><div class="signal-dot red"></div><div class="signal-text" style="font-style: normal;">Повторяет слова руководства, не свои</div></div>
+          </div>
+        </div>
+        <div class="col-block" style="border-left: 4px solid #5a8a3a; border-radius: 0 14px 14px 0;">
+          <div class="col-block-title" style="color: #5a8a3a;">Awareness есть</div>
+          <div class="signal-list">
+            <div class="signal-item" style="background: rgba(90,138,58,0.06); border-color: rgba(90,138,58,0.2);"><div class="signal-dot"></div><div class="signal-text" style="font-style: normal;">Объясняет суть своими словами</div></div>
+            <div class="signal-item" style="background: rgba(90,138,58,0.06); border-color: rgba(90,138,58,0.2);"><div class="signal-dot"></div><div class="signal-text" style="font-style: normal;">Называет конкретную проблему, которую решает изменение</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="note-box">Если Awareness есть — ищи барьер дальше по ADKAR. Если нет — начинай с объяснения смысла.</div>
+    </div>
+  </div>
+
+  <div class="slide" id="slide-5">
+    <div class="slide-content full-w">
+      <div class="slide-label">Действия руководителя</div>
+      <div class="slide-title sm">Как формировать Awareness</div>
+      <div class="step-flow">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Объяснить зачем — через факты</div>
+            <div class="step-desc">Не «повышаем эффективность», а конкретно: какая проблема есть сейчас и почему её нужно решить.</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Показать последствия бездействия</div>
+            <div class="step-desc">Потери клиентов, рост нагрузки, ошибки, задержки — что произойдёт, если оставить всё как есть.</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Связать изменение с целями команды</div>
+            <div class="step-desc">Показать, как изменение помогает достичь важного результата — снизить хаос, ускорить ответы, сократить ручную работу.</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Повторять ключевую мысль несколько раз</div>
+            <div class="step-desc">Одного объявления мало. На встрече, письменно, на регулярных синках — пока не усвоится.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" id="slide-6">
+    <div class="slide-content full-w">
+      <div class="slide-label">Пример из практики</div>
+      <div class="slide-title sm">Как это звучит на деле</div>
+      <div class="example-block">
+        <div class="example-label">Руководитель говорит</div>
+        <div class="example-text">
+          «Мы переходим на новую CRM не потому, что "так решил бизнес". Сейчас часть клиентов теряется из-за ручных записей и забытых follow-up. За прошлый квартал мы потеряли 4 клиента именно из-за несвоевременного контакта.
+          <br><br>
+          Новая CRM будет автоматически ставить напоминания, хранить историю общения и показывать, какие клиенты давно без внимания.
+          <br><br>
+          Если останемся в Excel и блокнотах — при росте клиентской базы качество будет падать. Поэтому CRM — это не просто новый инструмент, а условие для того, чтобы команда могла расти без потери клиентов.»
+        </div>
+      </div>
+      <div class="two-col" style="margin-top: 18px;">
+        <div class="col-block">
+          <div class="col-block-title">Что здесь есть</div>
+          <div class="signal-list">
+            <div class="signal-item"><div class="signal-dot"></div><div class="signal-text" style="font-style: normal;">Конкретная проблема с цифрами</div></div>
+            <div class="signal-item"><div class="signal-dot"></div><div class="signal-text" style="font-style: normal;">Последствия бездействия</div></div>
+            <div class="signal-item"><div class="signal-dot"></div><div class="signal-text" style="font-style: normal;">Связь с целями команды</div></div>
+          </div>
+        </div>
+        <div class="col-block" style="border-left: 4px solid #c8664a; border-radius: 0 14px 14px 0;">
+          <div class="col-block-title" style="color: #c8664a;">Чего здесь нет</div>
+          <div class="signal-list">
+            <div class="signal-item" style="background: rgba(200,100,74,0.05);"><div class="signal-dot red"></div><div class="signal-text" style="font-style: normal;">«Руководство так решило»</div></div>
+            <div class="signal-item" style="background: rgba(200,100,74,0.05);"><div class="signal-dot red"></div><div class="signal-text" style="font-style: normal;">«Повышаем эффективность»</div></div>
+            <div class="signal-item" style="background: rgba(200,100,74,0.05);"><div class="signal-dot red"></div><div class="signal-text" style="font-style: normal;">Абстрактных обещаний</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" id="slide-7">
+    <svg class="wave-deco" style="right: -20px;" viewBox="0 0 350 250" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="250" cy="180" rx="180" ry="130" fill="#3d5a30"/>
+      <ellipse cx="300" cy="80" rx="110" ry="90" fill="#3d5a30"/>
+    </svg>
+    <div class="slide-content" style="justify-content: center;">
+      <div class="slide-label">Итог</div>
+      <div class="slide-title">Awareness —<br>точка отсчёта</div>
+      <div class="slide-subtitle">Пока человек не понял смысл изменения, он не перейдёт к желанию участвовать в нём. Задача руководителя — не объявить, а помочь увидеть необходимость.</div>
+      <div class="highlight-box" style="margin-top: 10px;">
+        <div class="highlight-box-title">Проверочный вопрос</div>
+        <div class="highlight-box-text">Может ли каждый из твоей команды объяснить своими словами, какую проблему решает это изменение — и что будет, если его не сделать?</div>
+      </div>
+      <div class="adkar-row" style="margin-top: 24px;">
+        <div class="adkar-pill highlight">A — Awareness ✓</div>
+        <div class="adkar-pill">D → Desire</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-bar">
+    <button class="nav-btn" id="btn-prev" onclick="navigate(-1)" disabled>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="11 6 5 12 11 18"/></svg> Назад
+    </button>
+    <div style="display: flex; align-items: center; gap: 18px;">
+      <div class="nav-dots" id="nav-dots"></div>
+      <div class="slide-counter"><span id="cur">1</span> / <span id="tot">7</span></div>
+    </div>
+    <button class="nav-btn" id="btn-next" onclick="navigate(1)">
+      Вперёд <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+    </button>
+  </div>
+
+</div>
+</div>
+
+<script>
+  var cur = 0;
+  var slides = document.querySelectorAll('.slide');
+  var total = slides.length;
+  document.getElementById('tot').textContent = total;
+
+  var dotsContainer = document.getElementById('nav-dots');
+  for (var i = 0; i < total; i++) {
+    var d = document.createElement('div');
+    d.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    d.onclick = (function(idx){ return function(){ goTo(idx); }; })(i);
+    dotsContainer.appendChild(d);
+  }
+
+  function goTo(idx) {
+    slides[cur].classList.remove('active');
+    if (dotsContainer.children[cur]) dotsContainer.children[cur].classList.remove('active');
+    cur = idx;
+    slides[cur].classList.add('active');
+    if (dotsContainer.children[cur]) dotsContainer.children[cur].classList.add('active');
+    document.getElementById('cur').textContent = cur + 1;
+    document.getElementById('btn-prev').disabled = cur === 0;
+    document.getElementById('btn-next').disabled = cur === total - 1;
+  }
+
+  function navigate(dir) {
+    var next = cur + dir;
+    if (next >= 0 && next < total) goTo(next);
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight') navigate(1);
+    if (e.key === 'ArrowLeft') navigate(-1);
+  });
+
+  var CANVAS_W = 1280, CANVAS_H = 720;
+  function fitCanvas() {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var scale = Math.min(vw / CANVAS_W, vh / CANVAS_H);
+    document.getElementById('canvas').style.transform = 'scale(' + scale + ')';
+  }
+  window.addEventListener('resize', fitCanvas);
+  window.addEventListener('load', fitCanvas);
+  fitCanvas();
+</script>
+</body>
+</html>
